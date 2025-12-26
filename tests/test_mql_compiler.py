@@ -113,6 +113,26 @@ class MqlCompilerTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             mc.compile_source(missing, compiler=Path("/opt/fake.exe"))
 
+    def test_wine_mode_checks_wine_availability(self) -> None:
+        # When wine=True, should check for wine command instead of compiler path existence
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "test.mq5"
+            source.write_text("// test")
+            # Use a Windows-style path that doesn't exist on Linux
+            fake_windows_compiler = Path("/fake/windows/path/MetaEditor64.exe")
+            
+            # This should raise because wine command is not available (or check if it is)
+            import shutil
+            wine_available = shutil.which("wine") is not None
+            
+            if not wine_available:
+                # If wine is not available, should raise FileNotFoundError about wine
+                with self.assertRaises(FileNotFoundError) as ctx:
+                    mc.compile_source(source, compiler=fake_windows_compiler, wine=True)
+                self.assertIn("wine command not found", str(ctx.exception))
+            # If wine is available, the test would proceed differently, but we can't test that reliably
+
     def test_cli_invocation_runs_compiler(self) -> None:
         repo_root = Path(__file__).parent.parent
         with tempfile.TemporaryDirectory() as tmp:
@@ -144,6 +164,9 @@ class MqlCompilerTests(unittest.TestCase):
     def test_parse_args_with_minimal_arguments(self) -> None:
         args = mc.parse_args(["test.mq5"])
         self.assertEqual(args.source, Path("test.mq5"))
+    def test_parse_args_with_required_source(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertEqual(args.source, Path("script.mq5"))
         self.assertIsNone(args.output)
         self.assertIsNone(args.compiler)
         self.assertFalse(args.wine)
@@ -161,6 +184,24 @@ class MqlCompilerTests(unittest.TestCase):
             "--extra-arg", "/v",
         ])
         self.assertEqual(args.source, Path("source.mq4"))
+    def test_parse_args_with_all_options(self) -> None:
+        args = mc.parse_args(
+            [
+                "input.mq4",
+                "--output",
+                "output.ex4",
+                "--compiler",
+                "/path/to/compiler.exe",
+                "--wine",
+                "--timeout",
+                "60",
+                "--extra-arg",
+                "/q",
+                "--extra-arg",
+                "/inc:libs",
+            ]
+        )
+        self.assertEqual(args.source, Path("input.mq4"))
         self.assertEqual(args.output, Path("output.ex4"))
         self.assertEqual(args.compiler, Path("/path/to/compiler.exe"))
         self.assertTrue(args.wine)
@@ -182,6 +223,29 @@ class MqlCompilerTests(unittest.TestCase):
             mc.parse_args(["--help"])
         # --help should exit with code 0
         self.assertEqual(cm.exception.code, 0)
+        self.assertEqual(args.extra_arg, ["/q", "/inc:libs"])
+
+    def test_parse_args_short_output_flag(self) -> None:
+        args = mc.parse_args(["test.mq5", "-o", "custom.ex5"])
+        self.assertEqual(args.output, Path("custom.ex5"))
+
+    def test_parse_args_timeout_default(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertEqual(args.timeout, 120)
+
+    def test_parse_args_wine_default_false(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertFalse(args.wine)
+
+    def test_parse_args_extra_arg_default_empty(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertEqual(args.extra_arg, [])
+
+    def test_parse_args_multiple_extra_args(self) -> None:
+        args = mc.parse_args(
+            ["script.mq5", "--extra-arg", "/a", "--extra-arg", "/b", "--extra-arg", "/c"]
+        )
+        self.assertEqual(args.extra_arg, ["/a", "/b", "/c"])
 
 
 if __name__ == "__main__":
