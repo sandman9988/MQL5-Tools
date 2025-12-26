@@ -113,6 +113,26 @@ class MqlCompilerTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             mc.compile_source(missing, compiler=Path("/opt/fake.exe"))
 
+    def test_wine_mode_checks_wine_availability(self) -> None:
+        # When wine=True, should check for wine command instead of compiler path existence
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "test.mq5"
+            source.write_text("// test")
+            # Use a Windows-style path that doesn't exist on Linux
+            fake_windows_compiler = Path("/fake/windows/path/MetaEditor64.exe")
+            
+            # This should raise because wine command is not available (or check if it is)
+            import shutil
+            wine_available = shutil.which("wine") is not None
+            
+            if not wine_available:
+                # If wine is not available, should raise FileNotFoundError about wine
+                with self.assertRaises(FileNotFoundError) as ctx:
+                    mc.compile_source(source, compiler=fake_windows_compiler, wine=True)
+                self.assertIn("wine command not found", str(ctx.exception))
+            # If wine is available, the test would proceed differently, but we can't test that reliably
+
     def test_cli_invocation_runs_compiler(self) -> None:
         repo_root = Path(__file__).parent.parent
         with tempfile.TemporaryDirectory() as tmp:

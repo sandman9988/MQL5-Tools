@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -97,8 +98,14 @@ def compile_source(
         extra_args=tuple(extra_args or ()),
     )
 
-    if not config.compiler_path.exists():
-        raise FileNotFoundError(f"Compiler executable not found: {config.compiler_path}")
+    # When using Wine, the compiler path is a Windows executable that won't exist
+    # as a regular file on Linux. Instead, verify that wine command is available.
+    if config.wine:
+        if not shutil.which("wine"):
+            raise FileNotFoundError("wine command not found. Install Wine to run Windows executables.")
+    else:
+        if not config.compiler_path.exists():
+            raise FileNotFoundError(f"Compiler executable not found: {config.compiler_path}")
 
     target = output or _default_output_path(source)
     command = config.build_command(source, target)
