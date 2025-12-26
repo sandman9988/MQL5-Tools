@@ -141,6 +141,61 @@ class MqlCompilerTests(unittest.TestCase):
             self.assertIn("Command:", result.stdout)
             self.assertTrue((tmp_path / "cli_test.ex5").exists())
 
+    def test_parse_args_with_required_source(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertEqual(args.source, Path("script.mq5"))
+        self.assertIsNone(args.output)
+        self.assertIsNone(args.compiler)
+        self.assertFalse(args.wine)
+        self.assertEqual(args.timeout, 120)
+        self.assertEqual(args.extra_arg, [])
+
+    def test_parse_args_with_all_options(self) -> None:
+        args = mc.parse_args(
+            [
+                "input.mq4",
+                "--output",
+                "output.ex4",
+                "--compiler",
+                "/path/to/compiler.exe",
+                "--wine",
+                "--timeout",
+                "60",
+                "--extra-arg",
+                "/q",
+                "--extra-arg",
+                "/inc:libs",
+            ]
+        )
+        self.assertEqual(args.source, Path("input.mq4"))
+        self.assertEqual(args.output, Path("output.ex4"))
+        self.assertEqual(args.compiler, Path("/path/to/compiler.exe"))
+        self.assertTrue(args.wine)
+        self.assertEqual(args.timeout, 60)
+        self.assertEqual(args.extra_arg, ["/q", "/inc:libs"])
+
+    def test_parse_args_short_output_flag(self) -> None:
+        args = mc.parse_args(["test.mq5", "-o", "custom.ex5"])
+        self.assertEqual(args.output, Path("custom.ex5"))
+
+    def test_parse_args_timeout_default(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertEqual(args.timeout, 120)
+
+    def test_parse_args_wine_default_false(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertFalse(args.wine)
+
+    def test_parse_args_extra_arg_default_empty(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertEqual(args.extra_arg, [])
+
+    def test_parse_args_multiple_extra_args(self) -> None:
+        args = mc.parse_args(
+            ["script.mq5", "--extra-arg", "/a", "--extra-arg", "/b", "--extra-arg", "/c"]
+        )
+        self.assertEqual(args.extra_arg, ["/a", "/b", "/c"])
+
 
 if __name__ == "__main__":
     unittest.main()
