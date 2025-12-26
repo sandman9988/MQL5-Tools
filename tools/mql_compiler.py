@@ -31,7 +31,7 @@ class CompilerConfig:
     ) -> "CompilerConfig":
         compiler = os.getenv(MQL_COMPILER_ENV)
         if not compiler:
-            raise FileNotFoundError(
+            raise ValueError(
                 f"Set {MQL_COMPILER_ENV} to the MetaEditor/MetaTrader compiler executable."
             )
         return cls(
