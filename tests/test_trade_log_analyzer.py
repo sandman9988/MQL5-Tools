@@ -1,5 +1,6 @@
 from pathlib import Path
 import unittest
+import datetime as dt
 
 from tools import trade_log_analyzer as tla
 
@@ -27,6 +28,48 @@ class TradeLogAnalyzerTests(unittest.TestCase):
         self.assertAlmostEqual(summary["max_drawdown"], 40.8)
         self.assertEqual(summary["start_date"], "2024-01-02T09:00:00")
         self.assertEqual(summary["end_date"], "2024-01-04T18:45:00")
+
+    def test_parse_dt_with_fromisoformat(self) -> None:
+        """Test parse_dt when all format attempts fail and fromisoformat is invoked."""
+        # Use a valid ISO format datetime that doesn't match any of the predefined formats
+        row = {
+            "Ticket": "12345",
+            "Open Time": "2024-01-15T10:30:45",
+            "Type": "buy",
+            "Volume": "1.0",
+            "Symbol": "EURUSD",
+            "Price": "1.0850",
+            "SL": "1.0800",
+            "TP": "1.0900",
+            "Close Time": "2024-01-15T15:30:45",
+            "Close Price": "1.0875",
+            "Commission": "-5.0",
+            "Swap": "0.0",
+            "Profit": "25.0",
+        }
+        trade = tla.Trade.from_row(row)
+        self.assertEqual(trade.open_time, dt.datetime(2024, 1, 15, 10, 30, 45))
+        self.assertEqual(trade.close_time, dt.datetime(2024, 1, 15, 15, 30, 45))
+
+    def test_parse_dt_with_invalid_datetime(self) -> None:
+        """Test parse_dt when an invalid date string causes an exception."""
+        row = {
+            "Ticket": "12345",
+            "Open Time": "invalid-datetime",
+            "Type": "buy",
+            "Volume": "1.0",
+            "Symbol": "EURUSD",
+            "Price": "1.0850",
+            "SL": "1.0800",
+            "TP": "1.0900",
+            "Close Time": "2024-01-15 15:30:45",
+            "Close Price": "1.0875",
+            "Commission": "-5.0",
+            "Swap": "0.0",
+            "Profit": "25.0",
+        }
+        with self.assertRaises(ValueError):
+            tla.Trade.from_row(row)
 
 
 if __name__ == "__main__":
