@@ -141,6 +141,48 @@ class MqlCompilerTests(unittest.TestCase):
             self.assertIn("Command:", result.stdout)
             self.assertTrue((tmp_path / "cli_test.ex5").exists())
 
+    def test_parse_args_with_minimal_arguments(self) -> None:
+        args = mc.parse_args(["test.mq5"])
+        self.assertEqual(args.source, Path("test.mq5"))
+        self.assertIsNone(args.output)
+        self.assertIsNone(args.compiler)
+        self.assertFalse(args.wine)
+        self.assertEqual(args.timeout, 120)
+        self.assertEqual(args.extra_arg, [])
+
+    def test_parse_args_with_all_arguments(self) -> None:
+        args = mc.parse_args([
+            "source.mq4",
+            "--output", "output.ex4",
+            "--compiler", "/path/to/compiler.exe",
+            "--wine",
+            "--timeout", "60",
+            "--extra-arg", "/q",
+            "--extra-arg", "/v",
+        ])
+        self.assertEqual(args.source, Path("source.mq4"))
+        self.assertEqual(args.output, Path("output.ex4"))
+        self.assertEqual(args.compiler, Path("/path/to/compiler.exe"))
+        self.assertTrue(args.wine)
+        self.assertEqual(args.timeout, 60)
+        self.assertEqual(args.extra_arg, ["/q", "/v"])
+
+    def test_parse_args_default_timeout_value(self) -> None:
+        args = mc.parse_args(["script.mq5"])
+        self.assertEqual(args.timeout, 120)
+
+    def test_parse_args_short_output_flag(self) -> None:
+        args = mc.parse_args(["script.mq5", "-o", "custom.ex5"])
+        self.assertEqual(args.output, Path("custom.ex5"))
+
+    def test_parse_args_help_text(self) -> None:
+        # Test that help text can be generated without error
+        # This verifies the parser is configured correctly
+        with self.assertRaises(SystemExit) as cm:
+            mc.parse_args(["--help"])
+        # --help should exit with code 0
+        self.assertEqual(cm.exception.code, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
