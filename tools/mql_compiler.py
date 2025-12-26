@@ -102,20 +102,34 @@ def compile_source(
 
     target = output or _default_output_path(source)
     command = config.build_command(source, target)
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        timeout=config.timeout,
-        check=False,
-    )
-    return CompilerResult(
-        command=command,
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
-        output_path=target,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=config.timeout,
+            check=False,
+        )
+        return CompilerResult(
+            command=command,
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+            output_path=target,
+        )
+    except subprocess.TimeoutExpired as exc:
+        # Ensure we always return a CompilerResult, even on timeout.
+        stdout = exc.stdout or ""
+        base_stderr = exc.stderr or ""
+        timeout_msg = f"Compilation timed out after {config.timeout} seconds."
+        stderr = f"{base_stderr}\n{timeout_msg}" if base_stderr else timeout_msg
+        return CompilerResult(
+            command=command,
+            returncode=-1,
+            stdout=stdout,
+            stderr=stderr,
+            output_path=target,
+        )
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
